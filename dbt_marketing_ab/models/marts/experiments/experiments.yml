@@ -1,0 +1,18 @@
+version: 2
+
+models:
+  - name: dim_test_group
+    description: "Dimension table describing test groups (ad vs psa)."
+
+  - name: fct_experiment_summary
+    description: "Top-level A/B test outcomes by group."
+    columns:
+      - name: test_group
+      - name: conversion_rate
+        description: "Mean of converted; core KPI."
+
+  - name: fct_experiment_cohort_day
+    description: "Conversion outcomes by test group and day-of-week cohort."
+
+  - name: fct_experiment_cohort_intensity
+    description: "Conversion outcomes by test group and ad intensity cohorts."

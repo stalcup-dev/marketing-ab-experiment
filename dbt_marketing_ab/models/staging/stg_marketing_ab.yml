@@ -1,0 +1,77 @@
+# -----------------------------------------------------------
+# This YAML file tells dbt:
+#   - What the model is named
+#   - How to document it
+#   - What tests to run to validate data quality
+#   - What each column means and which constraints it must follow
+#
+# dbt uses this to build documentation + run tests with `dbt test`.
+# -----------------------------------------------------------
+
+version: 2    # Required header. Tells dbt which config schema version you're using.
+
+models:
+  # Each model listed here corresponds to a .sql file in this folder.
+  # This one corresponds to: models/staging/stg_marketing_ab.sql
+  - name: stg_marketing_ab
+    description: "Cleaned, typed marketing A/B test user-level dataset."   # Human-friendly description used in dbt docs.
+
+    columns:
+      # ---------------------------------------------------------
+      # COLUMN: user_id
+      # User identifiers must be unique and present.
+      # ---------------------------------------------------------
+      - name: user_id
+        tests:
+          - not_null          # Validates there are no NULL user IDs.
+          - unique            # Ensures no two rows share the same user_id.
+
+      # ---------------------------------------------------------
+      # COLUMN: test_group
+      # Should only ever contain "ad" (treatment) or "psa" (control).
+      # ---------------------------------------------------------
+      - name: test_group
+        tests:
+          - not_null          # There should always be a test group.
+          - accepted_values:
+              values: ['ad', 'psa']   # Only these two values are allowed.
+
+      # ---------------------------------------------------------
+      # COLUMN: converted
+      # Binary 0/1 flag indicating whether the user converted.
+      # ---------------------------------------------------------
+      - name: converted
+        description: "Binary indicator of conversion (1 = converted, 0 = did not)."
+        tests:
+          - not_null          # Must always contain 0 or 1.
+          - accepted_values:
+              values: [0, 1]  # Only valid outputs after cleaning.
+
+      # ---------------------------------------------------------
+      # COLUMN: total_ads
+      # The total advertisements shown to the user.
+      # ---------------------------------------------------------
+      - name: total_ads
+        tests:
+          - not_null          # Every user should have an ads count.
+
+      # ---------------------------------------------------------
+      # COLUMN: most_ads_day
+      # The day of the week with the most ad impressions.
+      # Validated strictly to prevent garbage or typos.
+      # ---------------------------------------------------------
+      - name: most_ads_day
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday']
+
+      # ---------------------------------------------------------
+      # COLUMN: most_ads_hour
+      # The hour (0–23) when ads were most frequently shown.
+      # We only test for not_null, but you *could* add a test
+      # to enforce an integer range if desired.
+      # ---------------------------------------------------------
+      - name: most_ads_hour
+        tests:
+          - not_null

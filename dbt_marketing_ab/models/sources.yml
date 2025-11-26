@@ -1,0 +1,21 @@
+version: 2
+
+sources:
+  - name: raw
+    schema: raw
+    tables:
+      - name: marketing_ab
+        description: "Raw Kaggle marketing_AB.csv A/B test dataset"
+        columns:
+          - name: "user id"
+            description: "Unique user identifier"
+          - name: "test group"
+            description: "ad vs psa"
+          - name: converted
+            description: "True if user bought, else False"
+          - name: "total ads"
+            description: "Total number of ads seen"
+          - name: "most ads day"
+            description: "Day with highest ad impressions"
+          - name: "most ads hour"
+            description: "Hour with highest ad impressions"

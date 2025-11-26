@@ -1,0 +1,14 @@
+pandas>=2.0
+numpy>=1.24
+matplotlib>=3.8
+seaborn>=0.13
+scipy>=1.11
+statsmodels>=0.14
+SQLAlchemy>=2.0
+
+jupyterlab>=4.0
+ipykernel>=6.0
+
+# Optional: for dbt-based pipeline work
+dbt-core>=1.7
+dbt-postgres>=1.7
