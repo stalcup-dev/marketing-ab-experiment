@@ -11,7 +11,7 @@ End-to-end analysis of Ad vs PSA performance using the Kaggle `marketing_AB` dat
   - Traffic allocation is ~**96% Ad vs ~4% PSA** (a treatment-heavy holdout pattern).
   - Exposure timing distributions (day/hour) differ significantly between groups (p ≪ 0.001).
   - These patterns can introduce confounding, so the lift should be treated as **directional / observational**, not a textbook RCT estimate.
-- **What this demonstrates about me:** I don’t stop at a z-test. I:
+- **What this demonstrates:** I don’t stop at a z-test. I:
   - run experiment integrity checks (SRM, balance/distribution diagnostics, data QA),
   - quantify lift + uncertainty (CI, tests),
   - and communicate when results are **directional** vs **causal**.
