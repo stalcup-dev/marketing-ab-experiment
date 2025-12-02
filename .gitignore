@@ -1,0 +1,11 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+
+# Data (don’t commit Kaggle CSVs)
+*.csv
+decision_pack/data/
+
+# Jupyter
+.ipynb_checkpoints/
