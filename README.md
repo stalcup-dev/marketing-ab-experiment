@@ -1,191 +1,141 @@
-# Marketing A/B Test – Ad vs PSA (Kaggle)
+# Marketing A/B Analysis – Ad vs PSA (Kaggle `marketing_AB`)
+
+End-to-end analysis of Ad vs PSA performance using the Kaggle `marketing_AB` dataset, with an **Experiment Integrity Audit + Decision Pack** that explicitly separates **directional evidence** from **causal claims**.
+
+---
 
 ## Executive Summary
 
-- **Business impact:** Replacing PSA with a product Ad increases conversion from **1.79% to 2.55%** – a **+0.76 pp lift (~+42% relative)** that is statistically robust and practically meaningful at scale.
-- **Experiment quality:** I validated **exposure** and **timing** balance using t-tests and chi-square tests, showing the uplift is unlikely to be driven by biased traffic.
-- **What this shows about me:** I can **design, validate, and interpret** A/B tests end-to-end, package the logic into reusable code, and translate the results into decisions a product or marketing team can act on.
+- **Directional business impact:** In this Kaggle marketing dataset, users associated with the **Ad** group convert at **2.55%** vs **1.79%** for **PSA** — a **+0.76 pp** lift (~**+42%** relative).
+- **Integrity caveat (causal validity):** Integrity checks show this dataset does **not** behave like a clean 50/50 randomized A/B test:
+  - Traffic allocation is ~**96% Ad vs ~4% PSA** (a treatment-heavy holdout pattern).
+  - Exposure timing distributions (day/hour) differ significantly between groups (p ≪ 0.001).
+  - These patterns can introduce confounding, so the lift should be treated as **directional / observational**, not a textbook RCT estimate.
+- **What this demonstrates about me:** I don’t stop at a z-test. I:
+  - run experiment integrity checks (SRM, balance/distribution diagnostics, data QA),
+  - quantify lift + uncertainty (CI, tests),
+  - and communicate when results are **directional** vs **causal**.
 
-**Audience:** Product managers, marketing leads, and analytics teams deciding whether to roll out the Ad variant and where to focus future optimization.
-
-
-End-to-end analysis of a marketing A/B test (Ad vs PSA) using the Kaggle `marketing_AB` dataset.
-
-This project simulates how I’d own an experiment in a real team:
-
-- Validate that the experiment is **well-designed and balanced**
-- Quantify the **uplift** and **uncertainty** (effect size, p-values, CIs, power)
-- Explore **for whom** the Ad works best via cohort analysis
-- Package core logic into a small, reusable **Python module**
-- (Planned) Build **Tableau dashboards** on top of the pipeline
+**Audience:** Product, Growth, and Marketing teams who need a trustworthy read on what this dataset can / cannot support.
 
 ---
 
 ## 1. Business Question
 
-A product team is running an experiment:
+A team is deciding what to show in an ad slot:
 
-> In a given ad slot, should we show a **product Ad** or a **public service announcement (PSA)** to maximize purchases?
+> Should we show a **product Ad** or a **public service announcement (PSA)** to maximize purchases?
 
-- **Control:** PSA (no product ad in that slot)  
-- **Treatment:** Product Ad  
-- **Outcome:** `converted` – whether the user eventually bought
+- **Control:** PSA  
+- **Treatment:** Ad  
+- **Primary outcome:** `converted` (0/1)
 
-Key goals:
+Key questions:
 
-1. Is the experiment **trustworthy** (balanced exposure & timing)?
-2. What is the **incremental lift** in conversion from showing the Ad?
-3. How **precise** is that estimate (confidence interval, power)?
-4. Are there **cohorts** (by exposure, day-of-week, etc.) where the Ad works better or worse?
-5. What concrete **recommendations** should the business act on?
+1. Do integrity checks indicate this behaves like a clean randomized experiment?
+2. What is the estimated conversion lift (effect size + uncertainty)?
+3. What would I recommend in a real team given the integrity findings?
 
 ---
 
-## 2. Key Results (TL;DR)
+## 2. Key Results (Directional)
 
 Using the Kaggle `marketing_AB` dataset:
 
 - **Conversion rates**
   - PSA (control): **1.79%**
   - Ad (treatment): **2.55%**
-- **Absolute lift:** **+0.76 percentage points** (2.55% − 1.79%)  
-- **Relative lift:** ≈ **+42% uplift** vs PSA
+- **Absolute lift:** **+0.76 pp**
+- **Relative lift:** **~+42%**
 
-**Statistical inference**
+**Inference (as-computed on the full dataset):**
 
-- Two-proportion z-test:
-  - z ≈ **7.37**
-  - p-value ≪ **0.001** (prints as `0.000000` at 6 decimals)
-- 95% confidence interval for lift (Ad − PSA):
-  - ≈ **[0.60, 0.94] percentage points**
+- Two-proportion z-test: z ≈ **7.4**, p-value **≪ 0.001**
+- 95% CI for lift (Ad − PSA): approx **[0.60, 0.94] pp**
 
-**Interpretation**
+**Interpretation (important):**
 
-> Showing the Ad instead of the PSA increases conversion by roughly **0.6–0.9 percentage points**, with a best estimate around **0.8 pp**.  
-> This effect is **statistically robust** given the large sample size and is practically meaningful for a high-volume funnel.
-
-### Why this matters to the business
-
-To make the lift tangible, assume:
-
-- **Monthly traffic through this slot:** 10,000,000 users
-- **Average order value (AOV):** \$50
-
-With PSA:
-
-- Conversion ≈ **1.79%** → **179,000** orders
-
-With Ad:
-
-- Conversion ≈ **2.55%** → **255,000** orders
-
-**Incremental impact from switching PSA → Ad:**
-
-- **+76,000 additional orders per 10M users**
-- At \$50 AOV, that’s ≈ **\$3.8M in additional revenue per 10M users** exposed
-
-Even if we cut these assumptions in half, the Ad represents a **multi-million dollar lever** at scale. That’s why getting the experiment design, QC, and interpretation right actually matters.
-
-**At scale (back-of-envelope)**
-
-If 1,000,000 users see this slot:
-
-- PSA would generate ~**17,900** conversions at 1.79%
-- Ad would generate ~**25,500** conversions at 2.55%
-- Incremental impact: ~**7,600 extra conversions per million users**
-
-With an average profit of **$X** per conversion, that’s roughly **$7,600 × X** in incremental profit per million impressions.
-
-
-
-**Experiment quality**
-
-- **Exposure (`total_ads`)** is effectively balanced between groups:
-  - Avg ads per user: Ad ≈ 24.82, PSA ≈ 24.76 (diff ≈ 0.06 ads, p ≈ 0.83)
-- **Timing (`most_ads_day`, `most_ads_hour`)** shows small but not dramatic differences:
-  - Day-of-week and hour-of-day distributions differ by at most a few percentage points
-  - Statistically detectable (huge N), but **practically modest**
-
-**Overall:**  
-The experiment is **credible**, and the Ad delivers a **real, positive uplift** in conversion.
-
-Cohort-level insights and recommendations are detailed in **Notebook 3**.
+> The Ad group has meaningfully higher conversion **in this dataset**. However, because integrity checks show strong traffic imbalance and timing differences, this result should be treated as **directional evidence** rather than a fully causal estimate from a classic 50/50 RCT.
 
 ---
 
+## 2.1 Experiment Integrity & Limitations (Decision Pack)
+
+This repo includes an integrity audit pipeline under `decision_pack/` that generates a markdown integrity report.
+
+### Integrity findings on this dataset
+
+- **Traffic allocation / SRM diagnostic (vs a 50/50 reference split):**
+  - Observed: **~564,577 Ad vs ~23,524 PSA** (~96% vs ~4%)
+  - Conclusion: This dataset does not resemble a balanced 50/50 A/B. It looks like a **treatment-heavy holdout**.
+  - Note: SRM is only “failure” relative to an assumed target split. This dataset may have been designed as a holdout rather than 50/50.
+
+- **Timing distribution diagnostics:**
+  - Day-of-week and hour-of-day differ significantly across groups (p ≪ 0.001).
+  - With large samples, small differences become statistically detectable; however these signals still indicate groups may not be perfectly comparable across time windows.
+
+### Practical implication
+
+- Treat the full-dataset lift as a **campaign-style comparison** rather than a pure randomized A/B test result.
+- In a real team, I would recommend:
+  - enforcing an explicit traffic split (or documenting the holdout design),
+  - adding real-time SRM monitoring,
+  - and collecting true pre-treatment covariates (device/source/geo) for stronger balance validation.
+
 ---
 
-## 10. Visuals (Selected Charts)
+## 3. Visuals (Selected)
 
-### 1. Conversion rate by group
+### 3.1 Conversion rate by group
 
 ![Conversion rate by group](visuals/conversion_rate_by_group.png)
 
-Overall conversion rates for **PSA vs Ad**.  
-This makes the **+0.76 pp / +42% relative lift** immediately visible for stakeholders.
-
----
-
-### 2. Conversion rate by day and test group
+### 3.2 Conversion rate by day and test group
 
 ![Conversion rate by day and test group](visuals/conversion_rate_by_day_and_test_group.png)
 
-Conversion rates by **day of week** split by **test_group** (Ad vs PSA).  
-Highlights which days (e.g., early-week vs late-week) show the strongest incremental gains from running the Ad.
-
----
-
-### 3. Conversion rate by ad-intensity cohort and group
+### 3.3 Conversion rate by ad-intensity cohort and group
 
 ![Conversion rate by ad intensity cohort and group](visuals/conversion_rate_by_ad_intensity_cohort_and_group.png)
 
-Conversion rates by **ads_intensity_bucket** (light / medium / heavy exposure) and group.  
-Shows how **exposure intensity interacts with creative** – where the Ad delivers the largest uplift and where returns start to flatten.
+---
 
+## 4. Tech Stack
 
-## 3. Tech Stack
-
-- **Python / Jupyter**
-  - `pandas`, `numpy`, `matplotlib`, `seaborn`
-  - `statsmodels` (two-proportion z-tests, confidence intervals, power)
-- **dbt (Data Build Tool)**
-  - Staging, intermediate, and mart models for experiment features & cohorts
-- **Custom Python module**
-  - `src/ab_experiment/` for:
-    - `get_experiment_df()` data access & cleaning
-    - reusable stats helpers (conversion lift, z-test, CI)
-- **(Planned) Tableau**
-  - `tableau/` folder for experiment overview dashboards
+- **Python / Jupyter:** `pandas`, `numpy`, `matplotlib`, `statsmodels`, `scipy`
+- **dbt:** staging → intermediate → marts for experiment features/cohorts
+- **Custom Python module:** `src/ab_experiment/` for reusable experiment stats
+- **Decision Pack pipeline:** `decision_pack/src/abpack/` for integrity checks + report generation
+- **(Planned) Tableau:** dashboards
 
 ---
 
-## 4. Repository Structure
+## 5. Repository Structure
 
 ```text
 .
 ├── data_raw/
-│   └── marketing_AB.csv         # Kaggle marketing A/B dataset
+│   └── marketing_AB.csv
 ├── dbt_marketing_ab/
-│   ├── models/
-│   │   ├── staging/
-│   │   ├── intermediate/
-│   │   └── marts/
-│   │       └── experiments/     # Cohorts, intensity buckets, etc.
-│   └── ...                      # dbt project files
+│   └── models/...
 ├── notebooks/
-│   ├── 01_eda_and_randomization_checks.ipynb
+│   ├── 01_eda_and_integrity_diagnostics.ipynb
 │   ├── 02_ab_test_frequentist_and_power.ipynb
 │   └── 03_cohort_heterogeneity_and_recommendations.ipynb
-├── reports/
-│   └── ab_experiment_summary.md # Optional 1-page summary for stakeholders
+├── decision_pack/
+│   ├── data/
+│   │   └── marketing_ab.csv
+│   ├── reports/
+│   │   └── integrity_report.md
+│   └── src/abpack/
+│       ├── io.py
+│       ├── checks.py
+│       └── run.py
 ├── src/
 │   └── ab_experiment/
-│       ├── __init__.py
-│       ├── data_access.py       # get_experiment_df()
-│       └── stats.py             # compute_conversion_lift, z-tests, CIs, power
-├── tableau/                     # (Planned) Tableau workbooks
-│   └── README.md                # Placeholder / future description
-├── visuals/                     # (Planned) Tableau workbooks
+│       ├── data_access.py
+│       └── stats.py
+├── visuals/
 │   ├── conversion_rate_by_group.png
 │   ├── conversion_rate_by_day_and_test_group.png
 │   └── conversion_rate_by_ad_intensity_cohort_and_group.png
@@ -195,173 +145,81 @@ Shows how **exposure intensity interacts with creative** – where the Ad delive
 
 ---
 
-## 5. Notebooks Overview
+## 6. Notebooks Overview
 
-### `01_eda_and_randomization_checks.ipynb`
+### `01_eda_and_integrity_diagnostics.ipynb`
 
-**Goal:** Validate that the experiment is well-designed and balanced before trusting any uplifts.
+**Goal:** Audit assignment/allocation assumptions and run integrity diagnostics before trusting lift.
 
-- Load & clean `marketing_AB.csv`
-- Explore distributions:
-  - Group sizes
-  - `total_ads`
-  - `most_ads_day`
-  - `most_ads_hour`
-- Check **exposure balance**:
-  - Welch’s t-test on `total_ads` between Ad and PSA
-- Check **timing balance**:
-  - Chi-square tests on `most_ads_day × test_group`
-  - Chi-square tests on `most_ads_hour × test_group`
-- Summarize:
-  - Exposure is essentially identical
-  - Timing differences are small and manageable
-
----
+- Group sizes and allocation pattern (holdout vs 50/50)
+- Distribution diagnostics: day-of-week/hour-of-day
+- Data QA checks (missingness, duplicates, label sanity)
+- Clear write-up of limitations for causal interpretation
 
 ### `02_ab_test_frequentist_and_power.ipynb`
 
-**Goal:** Quantify uplift and uncertainty; test significance and power.
+**Goal:** Estimate lift + uncertainty.
 
-- Compute basic metrics:
-  - Conversion per group
-  - Absolute & relative lift
-- Run **two-proportion z-test** (Ad vs PSA)
-- Build **95% confidence interval** for the lift
-- Run a basic **power analysis**:
-  - Was the experiment well-powered for the observed effect?
-  - How many users per group would we need to detect a smaller, business-relevant lift?
-
-Includes both:
-
-- A **high-level version** using `ab_experiment.stats` helpers  
-- A **fully expanded version** with raw `statsmodels` code and comments (for transparency / learning)
-
----
+- Conversion rates, absolute/relative lift
+- z-test + confidence intervals
+- power/MDE discussion (with caveats given unequal allocation)
 
 ### `03_cohort_heterogeneity_and_recommendations.ipynb`
 
-**Goal:** Understand *for whom* the Ad works best and produce actionable recommendations.
+**Goal:** Segment-level directional insights (with caution about confounding).
 
-- Cohort definitions (via dbt models), e.g.:
-  - `ads_intensity_bucket` (light / medium / heavy exposure)
-  - `most_ads_day` (day-of-week cohorts)
-- For each cohort:
-  - Compute conversion rates for Ad vs PSA
-  - Estimate uplift & significance using the same stats helpers
-- Translate into a **playbook**:
-  - Where lift is strongest and volume is meaningful
-  - Where performance is weaker or uncertain
-  - Suggestions for targeting & experimentation follow-ups
-
----
-
-## 6. The `ab_experiment` Python Module
-
-To avoid copy-pasting logic across notebooks, core functionality is packaged in `src/ab_experiment/`.
-
-### Data access
-
-```python
-from ab_experiment import get_experiment_df
-
-df = get_experiment_df()  # loads and cleans marketing_AB.csv
-```
-
-### Stats helpers
-
-```python
-from ab_experiment import stats as ab_stats
-
-lift = ab_stats.compute_conversion_lift(df)
-# LiftResult with:
-# - control_rate, treatment_rate
-# - abs_lift, rel_lift
-# - counts for each group
-
-z_res = ab_stats.two_proportion_ztest(lift)
-# {'z_stat': ..., 'p_value': ...}
-
-ci = ab_stats.lift_confint(lift)
-# {'ci_low': ..., 'ci_high': ...}
-```
-
-This mirrors how a production analytics codebase would encapsulate experiment logic in reusable functions instead of re-coding each test in notebooks.
+- Cohorts (day-of-week, intensity buckets)
+- Practical recommendations + follow-up experiment design
 
 ---
 
 ## 7. How to Run Locally
 
-1. **Clone the repo**
-
-```bash
-git clone <this-repo-url>.git
-cd marketing-ab-experiment
-```
-
-2. **Create a virtual environment and install dependencies**
+Create a virtual environment and install dependencies:
 
 ```bash
 python -m venv .venv
-source .venv/bin/activate  # on Windows: .venv\Scriptsactivate
+# Windows: .venv\Scripts\activate
 pip install -r requirements.txt
-```
-
-3. **Launch Jupyter**
-
-```bash
 jupyter lab
-# or
-jupyter notebook
 ```
 
-4. **Run notebooks in order**
+Generate the integrity report:
 
-- `01_eda_and_randomization_checks.ipynb`
-- `02_ab_test_frequentist_and_power.ipynb`
-- `03_cohort_heterogeneity_and_recommendations.ipynb`
+```powershell
+cd "C:\path\to\marketing-ab-experiment"
+python decision_pack/src/abpack/run.py
+```
 
 ---
 
-## 8. What this project demonstrates about my skill set
+## 8. What this project demonstrates
 
-This repo is designed to show how I would contribute as a Data Analyst / Analytics Engineer on a real team:
+- **Experimentation thinking:** integrity checks before claiming impact
+- **Statistical estimation:** lift + CI + hypothesis testing
+- **Analytics engineering:** reusable modules + reproducible reports
+- **Stakeholder communication:** clear distinction between directional vs causal conclusions
 
-- **Experiment design & QC**
-  - I don’t just compare two percentages — I first validate:
-    - Group balance on exposure (`total_ads`)
-    - Timing distributions (`most_ads_day`, `most_ads_hour`)
-  - I treat randomization checks and experiment credibility as first-class steps before claiming uplift.
+---
 
-- **Statistical rigor with practical framing**
-  - Use of two-proportion z-tests, confidence intervals, and power analysis to:
-    - Quantify *how big* the effect is,
-    - Assess *how certain* we are,
-    - Communicate both in plain language (percentage-point lift, approximate revenue impact).
+## 9. Experimentation Decision Pack (Integrity + Memo)
 
-- **Analytics engineering mindset**
-  - Factored common logic into a small Python package (`src/ab_experiment`) instead of copy-pasting code across notebooks.
-  - Structured dbt models into staging → intermediate → marts, mirroring modern analytics stacks.
-  - This makes it easy to reuse the same QC + inference patterns for future experiments.
+Alongside the notebooks and core `src/ab_experiment` module, this repo includes a small “decision pack” under `decision_pack/`:
 
-- **Data storytelling & stakeholder-oriented outputs**
-  - Notebooks are organized around stakeholder questions:
-    - “Is this experiment trustworthy?”
-    - “Did the Ad work, by how much, and how confident are we?”
-    - “For which users does it work best, and what should we do next?”
-  - The final outputs (notebooks + README) are written as something I could hand to a PM or marketing lead, not just another course assignment.
+- `decision_pack/src/abpack/`:
+  - `io.py` – load and normalize the Kaggle marketing_AB dataset
+  - `checks.py` – SRM diagnostic, categorical distribution checks (day/hour), basic data quality checks
+  - `run.py` – generates an integrity report in markdown
+- `decision_pack/reports/`:
+  - `integrity_report.md` – SRM, timing distribution diagnostics, and QA findings
 
+This mirrors how I’d treat an experiment in production: **run integrity checks first, then decide whether the lift is trustworthy enough to use for high-stakes decisions.**
 
-## 9. Roadmap / Future Work
+---
 
-Planned enhancements:
+## 10. Roadmap / Future Work
 
-- **Tableau dashboards**
-  - Build a high-level “Experiment Overview” dashboard (conversion, lift, confidence intervals, cohorts).
-  - Add drill-downs by exposure intensity and day-of-week.
-- **Logistic regression / causal modeling**
-  - Model `converted ~ test_group + total_ads + most_ads_day_index` to control for covariates.
-- **Automation**
-  - Wire dbt models + Python analysis into a scheduled pipeline.
-  - Parameterize the `ab_experiment` module so it can be reused for other tests.
-
-This repo is intentionally structured so it can grow from a **single experiment analysis** into a more general **A/B testing and reporting pipeline** with BI dashboards on top.
+- Add effect-size reporting for distribution diagnostics (e.g., Cramér’s V) to quantify practical vs statistical differences
+- Build a “balanced subset” analysis (matched Ad sample to PSA) as a pedagogical A/B-style comparison (clearly labeled as a constructed subset)
+- Tableau overview dashboard + drill-downs
+- Logistic regression / causal modeling with covariates (if available)
