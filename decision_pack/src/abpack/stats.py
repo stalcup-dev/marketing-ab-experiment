@@ -1,7 +1,10 @@
 from dataclasses import dataclass
 from math import sqrt
-from typing import Dict  # NOTE: unused import in this snippet; safe to delete
-from scipy.stats import norm  # normal distribution utilities (CDF/PPF) for z-test + CI
+from typing import Any, Dict, List
+
+import pandas as pd
+from scipy.stats import norm
+
 
 
 # -------------------------
@@ -122,6 +125,82 @@ def two_proportion_ztest_ci(
         ci_high=ci_high,
     )
 
+def stratified_lift_ci(
+    df: pd.DataFrame,
+    strata_col: str,
+    group_col: str = "test_group",
+    y_col: str = "converted",
+    control: str = "psa",
+    treatment: str = "ad",
+    min_n_per_group: int = 20,
+    z: float = 1.96,
+    top_k: int = 5,
+) -> Dict[str, Any]:
+    """
+    Compute lift within each stratum (e.g. day/hour), then pool lifts using size weights.
+    CI uses Var(weighted mean) ≈ Σ (w_i/W)^2 * Var_i   where Var_i is var(diff in proportions) per stratum.
+    Returns a dict suitable for markdown reporting.
+    """
+    if strata_col not in df.columns:
+        raise ValueError(f"Missing strata_col: {strata_col}")
+
+    rows: List[Dict[str, Any]] = []
+
+    for s, g in df.groupby(strata_col, dropna=False):
+        gc = g[g[group_col] == control][y_col]
+        gt = g[g[group_col] == treatment][y_col]
+        n_c, n_t = int(len(gc)), int(len(gt))
+
+        if n_c < min_n_per_group or n_t < min_n_per_group:
+            continue
+
+        p_c = float(gc.mean())
+        p_t = float(gt.mean())
+        lift = p_t - p_c
+
+        var = (p_t * (1 - p_t) / n_t) + (p_c * (1 - p_c) / n_c)
+        w = float(n_c + n_t)
+
+        rows.append(
+            {
+                "stratum": s,
+                "n_control": n_c,
+                "n_treat": n_t,
+                "p_control": p_c,
+                "p_treat": p_t,
+                "lift": lift,
+                "var": float(var),
+                "weight": w,
+            }
+        )
+
+    if not rows:
+        raise ValueError(
+            f"No strata met min_n_per_group={min_n_per_group} for both groups in `{strata_col}`."
+        )
+
+    # Pool
+    W = sum(r["weight"] for r in rows)
+    pooled = sum(r["weight"] * r["lift"] for r in rows) / W
+
+    pooled_var = sum(((r["weight"] / W) ** 2) * r["var"] for r in rows)
+    se = sqrt(pooled_var)
+
+    ci_low = pooled - z * se
+    ci_high = pooled + z * se
+
+    # Top strata by influence
+    rows_sorted = sorted(rows, key=lambda r: r["weight"], reverse=True)
+    top = rows_sorted[:top_k]
+
+    return {
+        "strata_col": strata_col,
+        "pooled_lift": float(pooled),
+        "ci_low": float(ci_low),
+        "ci_high": float(ci_high),
+        "n_strata_used": int(len(rows)),
+        "top_strata": top,
+    }
 
 # -------------------------
 # Formatting helpers (report-friendly)
@@ -133,10 +212,10 @@ def fmt_pct(x: float, decimals: int = 2) -> str:
 
 def fmt_pp(x: float, decimals: int = 2) -> str:
     """Percentage points (e.g., 0.0076 -> 0.76 pp)."""
-    # Converts an absolute proportion difference to "pp" display
     return f"{100 * x:.{decimals}f} pp"
 
 
 def fmt_p(p: float) -> str:
     # Avoid ugly "0.0" due to floating underflow; show an ultra-small floor instead
     return "<1e-300" if p == 0.0 else f"{p:.6g}"
+

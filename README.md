@@ -2,6 +2,7 @@
 
 End-to-end analysis of Ad vs PSA performance using the Kaggle `marketing_AB` dataset, with an **Experiment Integrity Audit + Decision Pack** that explicitly separates **directional evidence** from **causal claims**.
 
+
 ---
 
 ## Executive Summary
@@ -81,6 +82,9 @@ This repo includes an integrity audit pipeline under `decision_pack/` that gener
   - enforcing an explicit traffic split (or documenting the holdout design),
   - adding real-time SRM monitoring,
   - and collecting true pre-treatment covariates (device/source/geo) for stronger balance validation.
+
+### Docs
+- Experiment Design Spec: `decision_pack/docs/experiment_design_spec.md`
 
 ---
 

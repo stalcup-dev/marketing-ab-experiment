@@ -2,7 +2,8 @@ from pathlib import Path
 
 from abpack.io import load_marketing_ab
 from abpack.checks import srm_check
-from abpack.stats import two_proportion_ztest_ci, fmt_pct, fmt_pp, fmt_p
+from abpack.stats import two_proportion_ztest_ci, stratified_lift_ci, fmt_pct, fmt_pp, fmt_p
+
 
 # --- Expected allocation patterns for SRM diagnostics ---
 # 1) Classic textbook A/B (reference check)
@@ -19,6 +20,12 @@ def main():
     est_path = root / "reports" / "estimation_report.md"
     memo_path = root / "reports" / "decision_memo_1pager.md"
 
+    # --- HARD PROOF DEBUG (temporary) ---
+    import abpack.stats as stats
+    print("USING stats.py:", stats.__file__)
+    print("WRITING estimation report to:", est_path.resolve())
+    # --- end debug ---
+
     df = load_marketing_ab(str(data_path))
 
     # Define control vs treatment labels for reporting
@@ -26,6 +33,7 @@ def main():
     treatment = "ad"
 
     # Guardrail: if dataset labels are unexpected, fail loudly with a helpful message
+
     present_groups = set(df["test_group"].unique())
     required_groups = {control, treatment}
     if not required_groups.issubset(present_groups):
@@ -90,11 +98,68 @@ def main():
     lines.append(
         f"- Incremental conversions per 1,000,000 users exposed ≈ {incr_per_1m:,.0f}\n\n"
     )
+    # ---- Robustness: Stratified lift (timing adjustment) ----
+    lines.append("## Robustness: Stratified lift (timing adjustment)\n")
+    lines.append(
+        "We recompute lift **within each time stratum** (day/hour) and then pool across strata.\n"
+        "If pooled stratified lift is close to the naive lift, the signal is more stable. "
+        "If it collapses or flips, the naive lift was likely driven by timing imbalance.\n\n"
+    )
 
+    naive_lift = res.abs_lift
+    lines.append(f"- Naive lift (full dataset): **{fmt_pp(naive_lift)}**\n")
+
+    for strata in ("most_ads_day", "most_ads_hour"):
+        lines.append(f"\n### Stratified by `{strata}`\n")
+
+        if strata not in df.columns:
+            lines.append("- Column not present; skipping.\n")
+            continue
+
+        try:
+            r = stratified_lift_ci(
+                df,
+                strata_col=strata,
+                group_col="test_group",
+                y_col="converted",
+                control=control,
+                treatment=treatment,
+                min_n_per_group=20,
+                top_k=5,
+            )
+        except ValueError as e:
+            lines.append(f"- Could not compute stratified lift: {e}\n")
+            continue
+
+        pooled = r["pooled_lift"]
+        diff = pooled - naive_lift
+
+        lines.append(
+            f"- Pooled stratified lift: **{fmt_pp(pooled)}** "
+            f"(95% CI {fmt_pp(r['ci_low'])} to {fmt_pp(r['ci_high'])})\n"
+        )
+        lines.append(f"- Difference vs naive: **{fmt_pp(diff)}**\n")
+
+        # Rule-of-thumb interpretation threshold (0.20 pp)
+        if abs(diff) <= 0.002:
+            lines.append("- Interpretation: Stratified ≈ naive (signal looks **more stable** across timing).\n")
+        else:
+            lines.append("- Interpretation: Stratified differs materially (timing imbalance may be driving the naive lift).\n")
+
+        lines.append("- Top strata by sample weight:\n")
+        for srow in r["top_strata"]:
+            lines.append(
+                f"  - `{strata}`={srow['stratum']}: "
+                f"control {fmt_pct(srow['p_control'])} ({srow['n_control']}), "
+                f"treatment {fmt_pct(srow['p_treat'])} ({srow['n_treat']}), "
+                f"lift {fmt_pp(srow['lift'])}\n"
+            )
+    lines.append("\n")
     lines.append("## Interpretation (Important)\n")
     lines.append(
         "- The full-dataset estimate is best treated as **directional** unless assignment/comparability is confirmed.\n"
         "- The allocation pattern is consistent with a **holdout** (treatment-heavy) design; holdouts can be valid for incremental measurement if randomized and stable over time.\n"
+        "- See **Robustness** section: if stratified lift deviates materially from naive lift, prioritize time-based confounding risk.\n"
     )
 
     est_path.write_text("".join(lines), encoding="utf-8")

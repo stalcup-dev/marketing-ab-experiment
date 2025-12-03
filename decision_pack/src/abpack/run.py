@@ -1,7 +1,8 @@
 from pathlib import Path
 
 from abpack.io import load_marketing_ab
-from abpack.checks import srm_check, categorical_balance_chi2, basic_quality
+from abpack.stats import two_proportion_ztest_ci, stratified_lift_ci, fmt_pct, fmt_pp, fmt_p
+
 
 
 def fmt_p(p: float) -> str:

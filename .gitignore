@@ -1,7 +1,10 @@
 # Python
+.venv/
+venv/
 __pycache__/
 *.pyc
-.venv/
+.pytest_cache/
+.ruff_cache/
 
 # Data (don’t commit Kaggle CSVs)
 *.csv
@@ -9,3 +12,7 @@ decision_pack/data/
 
 # Jupyter
 .ipynb_checkpoints/
+
+# OS/editor
+.DS_Store
+.vscode/
