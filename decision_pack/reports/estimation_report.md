@@ -40,6 +40,7 @@ If pooled stratified lift is close to the naive lift, the signal is more stable.
   - `most_ads_hour`=11: control 1.46% (2061), treatment 2.25% (44149), lift 0.79 pp
   - `most_ads_hour`=14: control 1.61% (1869), treatment 2.86% (43779), lift 1.25 pp
   - `most_ads_hour`=15: control 2.52% (1828), treatment 2.98% (42855), lift 0.47 pp
+
 ## Interpretation (Important)
 - The full-dataset estimate is best treated as **directional** unless assignment/comparability is confirmed.
 - The allocation pattern is consistent with a **holdout** (treatment-heavy) design; holdouts can be valid for incremental measurement if randomized and stable over time.

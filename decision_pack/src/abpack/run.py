@@ -1,19 +1,8 @@
 from pathlib import Path
 
 from abpack.io import load_marketing_ab
-from abpack.stats import two_proportion_ztest_ci, stratified_lift_ci, fmt_pct, fmt_pp, fmt_p
-
-
-
-def fmt_p(p: float) -> str:
-    """
-    Pretty-print p-values.
-
-    Why:
-    - With very large samples, p-values can underflow to 0.0 in floating-point.
-    - Printing "0" is confusing; "<1e-300" communicates "effectively zero".
-    """
-    return "<1e-300" if p == 0.0 else f"{p:.6g}"
+from abpack.checks import srm_check, basic_quality, categorical_balance_chi2
+from abpack.stats import fmt_p
 
 
 def main():

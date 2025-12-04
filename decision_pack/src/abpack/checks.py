@@ -2,6 +2,7 @@ from dataclasses import dataclass
 from typing import Dict, Optional
 import pandas as pd
 from scipy.stats import chisquare
+from scipy.stats import chi2_contingency
 
 #------SRM (Sample Ratio Mismatch)------ check for A/B test traffic allocation
 # Detects whether actual user counts per variant deviate significantly from expected split
@@ -60,9 +61,6 @@ def srm_check(
 # Evaluates whether categorical variable distributions are similar across test groups
 # e.g. user demographics, device types, etc.
 
-
-import pandas as pd
-from scipy.stats import chi2_contingency
 
 def categorical_balance_chi2(df: pd.DataFrame, group_col: str, cat_col: str):
     ct = pd.crosstab(df[group_col], df[cat_col])

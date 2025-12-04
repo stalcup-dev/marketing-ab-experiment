@@ -20,11 +20,6 @@ def main():
     est_path = root / "reports" / "estimation_report.md"
     memo_path = root / "reports" / "decision_memo_1pager.md"
 
-    # --- HARD PROOF DEBUG (temporary) ---
-    import abpack.stats as stats
-    print("USING stats.py:", stats.__file__)
-    print("WRITING estimation report to:", est_path.resolve())
-    # --- end debug ---
 
     df = load_marketing_ab(str(data_path))
 
