@@ -7,17 +7,13 @@ End-to-end analysis of Ad vs PSA performance using the Kaggle `marketing_AB` dat
 
 ## Executive Summary
 
-- **Directional business impact:** In this Kaggle marketing dataset, users associated with the **Ad** group convert at **2.55%** vs **1.79%** for **PSA** — a **+0.76 pp** lift (~**+42%** relative).
-- **Integrity caveat (causal validity):** Integrity checks show this dataset does **not** behave like a clean 50/50 randomized A/B test:
-  - Traffic allocation is ~**96% Ad vs ~4% PSA** (a treatment-heavy holdout pattern).
-  - Exposure timing distributions (day/hour) differ significantly between groups (p ≪ 0.001).
-  - These patterns can introduce confounding, so the lift should be treated as **directional / observational**, not a textbook RCT estimate.
-- **What this demonstrates:** I don’t stop at a z-test. I:
-  - run experiment integrity checks (SRM, balance/distribution diagnostics, data QA),
-  - quantify lift + uncertainty (CI, tests),
-  - and communicate when results are **directional** vs **causal**.
+- **Directional impact (this dataset):** Ad converts at **2.55%** vs **1.79%** for PSA → **+0.77 pp** lift (**+43%** relative; 95% CI **[+0.60, +0.94] pp**).
+- **Design / validity caveat:** The observed allocation is **~96% Ad / ~4% PSA**, which is inconsistent with a classic 50/50 randomized A/B and is more consistent with a **treatment-heavy holdout**. Treat results as **directional** unless assignment is confirmed randomized and stable.
+- **Timing robustness:** Day/hour distributions differ statistically (large N), but **stratified lift by day/hour (~0.78 pp) matches the naive lift (0.77 pp)** → timing mix is unlikely the primary driver of the observed lift.
+- **What this repo demonstrates:** A production-style workflow: **integrity checks (SRM, QA, balance) → estimation (lift + CI) → robustness → 1-page decision memo**.
 
-**Audience:** Product, Growth, and Marketing teams who need a trustworthy read on what this dataset can / cannot support.
+**Audience:** Product, Growth, and Marketing teams evaluating incrementality and experiment integrity.
+
 
 ---
 
@@ -46,7 +42,7 @@ Using the Kaggle `marketing_AB` dataset:
 - **Conversion rates**
   - PSA (control): **1.79%**
   - Ad (treatment): **2.55%**
-- **Absolute lift:** **+0.76 pp**
+- **Absolute lift:** **+0.77 pp**
 - **Relative lift:** **~+42%**
 
 **Inference (as-computed on the full dataset):**
@@ -83,6 +79,32 @@ This repo includes an integrity audit pipeline under `decision_pack/` that gener
   - adding real-time SRM monitoring,
   - and collecting true pre-treatment covariates (device/source/geo) for stronger balance validation.
 
+### Decision Pack Outputs
+- `decision_pack/reports/integrity_report.md` — SRM + QA + balance diagnostics
+- `decision_pack/reports/estimation_report.md` — lift + CI + stratified robustness (day/hour)
+- `decision_pack/reports/decision_memo_1pager.md` — 1-page recommendation
+- `decision_pack/docs/experiment_design_spec.md` — production experiment design
+
+### Reproduce the Decision Pack (reports)
+
+```powershell
+cd decision_pack/src
+python -m abpack.run
+python -m abpack.run_estimation
+```
+
+### Outputs
+decision_pack/reports/integrity_report.md
+decision_pack/reports/estimation_report.md
+decision_pack/reports/decision_memo_1pager.md
+
+
+
+### Key Findings (Kaggle dataset; directional)
+- Naive lift: **0.77pp**; stratified by day/hour: **~0.78pp** → timing mix not the primary driver.
+- Allocation is consistent with a **holdout-style split (~96/4)** rather than a classic 50/50 A/B.
+
+
 ### Docs
 - Experiment Design Spec: `decision_pack/docs/experiment_design_spec.md`
 
@@ -104,13 +126,20 @@ This repo includes an integrity audit pipeline under `decision_pack/` that gener
 
 ---
 
-## 4. Tech Stack
+## 4. Tools used
 
-- **Python / Jupyter:** `pandas`, `numpy`, `matplotlib`, `statsmodels`, `scipy`
-- **dbt:** staging → intermediate → marts for experiment features/cohorts
-- **Custom Python module:** `src/ab_experiment/` for reusable experiment stats
-- **Decision Pack pipeline:** `decision_pack/src/abpack/` for integrity checks + report generation
-- **(Planned) Tableau:** dashboards
+- **Python:** pandas, numpy, scipy (in `decision_pack/src/abpack/`)
+- **Notebooks:** EDA + estimation + cohort heterogeneity (in `notebooks/`)
+- **dbt:** staging → intermediate → marts (in `dbt_marketing_ab/`)
+
+  **dbt pointers**
+  - Project: `dbt_marketing_ab/`
+  - Models: `dbt_marketing_ab/models/` (staging → intermediate → marts)
+
+- **Visualization:** matplotlib (images saved in `visuals/`)
+- **(Optional / planned):** Tableau dashboard (see Roadmap)
+
+
 
 ---
 
@@ -127,8 +156,9 @@ This repo includes an integrity audit pipeline under `decision_pack/` that gener
 │   ├── 02_ab_test_frequentist_and_power.ipynb
 │   └── 03_cohort_heterogeneity_and_recommendations.ipynb
 ├── decision_pack/
-│   ├── data/
-│   │   └── marketing_ab.csv
+│   ├── data/                    # ignored; place Kaggle CSV here locally
+│   ├── tests/fixtures/
+│   │   └── marketing_ab_sample.csv  # committed for CI
 │   ├── reports/
 │   │   └── integrity_report.md
 │   └── src/abpack/
@@ -188,12 +218,17 @@ pip install -r requirements.txt
 jupyter lab
 ```
 
-Generate the integrity report:
+### Reproduce the Decision Pack (reports)
 
 ```powershell
-cd "C:\path\to\marketing-ab-experiment"
-python decision_pack/src/abpack/run.py
+cd decision_pack/src
+python -m abpack.run
+python -m abpack.run_estimation
 ```
+### Data
+- Large Kaggle CSV is intentionally **not committed**.
+- Put the dataset here locally: `decision_pack/data/marketing_ab.csv`
+- CI uses a small committed fixture: `decision_pack/tests/fixtures/marketing_ab_sample.csv`
 
 ---
 
