@@ -30,9 +30,14 @@ jobs:
 
       - name: Build decision pack reports
         run: |
-          cd decision_pack/src
-          python -m abpack.run
-          python -m abpack.run_estimation
+          if [ -f decision_pack/data/marketing_ab.csv ]; then
+            cd decision_pack/src
+            python -m abpack.run
+            python -m abpack.run_estimation
+          else
+            echo "marketing_ab.csv not present in CI; skipping report generation."
+          fi
+
 
       - name: Upload decision pack artifacts
         uses: actions/upload-artifact@v4
