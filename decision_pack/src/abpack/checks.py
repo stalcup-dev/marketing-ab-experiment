@@ -57,6 +57,47 @@ def srm_check(
 
 #If p < 0.01 → fail SRM (raise a big red flag in the report).
 
+def cramers_v_from_crosstab(ct: pd.DataFrame, chi2_stat: float) -> Optional[float]:
+    r"""### Cramér's V
+
+    Given a contingency table `ct` and chi-square statistic, compute the effect
+    size bounded between 0 and 1 per $V = \sqrt{\frac{\chi^2}{n(k-1)}}$.
+    """
+    n = float(ct.to_numpy().sum())
+    k = min(ct.shape)
+    if n == 0 or k <= 1:
+        return None
+    v = (chi2_stat / (n * (k - 1))) ** 0.5
+    return max(0.0, min(1.0, float(v)))
+
+
+def fmt_effect_size(value: Optional[float], decimals: int = 3) -> str:
+    """#### Formatting
+
+    Return a string with the effect size rounded to the requested precision or
+    `n/a` when no value exists.
+    """
+    if value is None:
+        return "n/a"
+    return f"{round(value, decimals):.{decimals}f}"
+
+
+def effect_size_label_cramers_v(value: Optional[float]) -> str:
+    """#### Interpretation
+
+    Map a Cramér's V magnitude into standard qualitative buckets.
+    """
+    if value is None:
+        return "n/a"
+    if value < 0.10:
+        return "negligible"
+    if value < 0.30:
+        return "small"
+    if value < 0.50:
+        return "medium"
+    return "large"
+
+
 # -----Categorical balance check using Chi-square test-----
 # Evaluates whether categorical variable distributions are similar across test groups
 # e.g. user demographics, device types, etc.
@@ -65,7 +106,16 @@ def srm_check(
 def categorical_balance_chi2(df: pd.DataFrame, group_col: str, cat_col: str):
     ct = pd.crosstab(df[group_col], df[cat_col])
     chi2, p, dof, _ = chi2_contingency(ct)
-    return {"table": ct, "chi2": float(chi2), "p_value": float(p), "dof": int(dof)}
+    cramers_v = cramers_v_from_crosstab(ct, chi2)
+    return {
+        "table": ct,
+        "chi2": float(chi2),
+        "p_value": float(p),
+        "dof": int(dof),
+        "cramers_v": cramers_v,
+        "cramers_v_formatted": fmt_effect_size(cramers_v),
+        "cramers_v_label": effect_size_label_cramers_v(cramers_v),
+    }
 
 # -----Basic Data Quality Checks-----
 # Checks for missing values, unexpected labels, duplicates, etc.
