@@ -7,7 +7,8 @@ End-to-end analysis of Ad vs PSA performance using the Kaggle `marketing_AB` dat
 
 ## Executive Summary
 
-- **Directional impact (this dataset):** Ad converts at **2.55%** vs **1.79%** for PSA → **+0.77 pp** lift (**+43%** relative; 95% CI **[+0.60, +0.94] pp**).
+- **Directional impact (this dataset):** Ad converts at **2.55%** vs **1.79%** for PSA → **+0.77 pp** lift (**+43.09%** relative; 95% CI **[+0.60, +0.94] pp**).
+- **Business translation:** ≈ **7,692 incremental conversions per 1,000,000 users exposed** (directional; from the full-dataset lift).
 - **Design / validity caveat:** The observed allocation is **~96% Ad / ~4% PSA**, which is inconsistent with a classic 50/50 randomized A/B and is more consistent with a **treatment-heavy holdout**. Treat results as **directional** unless assignment is confirmed randomized and stable.
 - **Timing robustness:** Day/hour distributions differ statistically (large N), but **stratified lift by day/hour (~0.78 pp) matches the naive lift (0.77 pp)** → timing mix is unlikely the primary driver of the observed lift.
 - **What this repo demonstrates:** A production-style workflow: **integrity checks (SRM, QA, balance) → estimation (lift + CI) → robustness → 1-page decision memo**.
@@ -43,7 +44,7 @@ Using the Kaggle `marketing_AB` dataset:
   - PSA (control): **1.79%**
   - Ad (treatment): **2.55%**
 - **Absolute lift:** **+0.77 pp**
-- **Relative lift:** **~+42%**
+- **Relative lift:** **+43.09%**
 
 **Inference (as-computed on the full dataset):**
 
@@ -52,7 +53,8 @@ Using the Kaggle `marketing_AB` dataset:
 
 **Interpretation (important):**
 
-> The Ad group has meaningfully higher conversion **in this dataset**. However, because integrity checks show strong traffic imbalance and timing differences, this result should be treated as **directional evidence** rather than a fully causal estimate from a classic 50/50 RCT.
+> The Ad group has meaningfully higher conversion **in this dataset**. Because integrity checks show strong traffic imbalance, treat this as **directional evidence** rather than a classic 50/50 RCT estimate; **stratified lift by day/hour is consistent with the naive estimate**, suggesting timing mix is unlikely the primary driver.
+
 
 ---
 
@@ -70,6 +72,7 @@ This repo includes an integrity audit pipeline under `decision_pack/` that gener
 - **Timing distribution diagnostics:**
   - Day-of-week and hour-of-day differ significantly across groups (p ≪ 0.001).
   - With large samples, small differences become statistically detectable; however these signals still indicate groups may not be perfectly comparable across time windows.
+  - **However, stratified lift by day/hour matches the naive lift (~0.78 pp vs 0.77 pp), suggesting timing mix is unlikely the primary driver of the observed lift.**
 
 ### Practical implication
 
@@ -80,10 +83,17 @@ This repo includes an integrity audit pipeline under `decision_pack/` that gener
   - and collecting true pre-treatment covariates (device/source/geo) for stronger balance validation.
 
 ### Decision Pack Outputs
+
+**Reports:**
 - `decision_pack/reports/integrity_report.md` — SRM + QA + balance diagnostics
 - `decision_pack/reports/estimation_report.md` — lift + CI + stratified robustness (day/hour)
 - `decision_pack/reports/decision_memo_1pager.md` — 1-page recommendation
+- `decision_pack/reports/power_mde_planning.md` — power analysis and MDE planning
+
+**Documentation:**
 - `decision_pack/docs/experiment_design_spec.md` — production experiment design
+- `decision_pack/docs/metric_framework.md` — metric definitions and framework
+- `decision_pack/docs/sequential_testing_note.md` — sequential testing considerations
 
 ### Reproduce the Decision Pack (reports)
 
@@ -94,10 +104,9 @@ python -m abpack.run_estimation
 ```
 
 ### Outputs
-decision_pack/reports/integrity_report.md
-decision_pack/reports/estimation_report.md
-decision_pack/reports/decision_memo_1pager.md
-
+- `decision_pack/reports/integrity_report.md`
+- `decision_pack/reports/estimation_report.md`
+- `decision_pack/reports/decision_memo_1pager.md`
 
 
 ### Key Findings (Kaggle dataset; directional)
@@ -152,7 +161,7 @@ decision_pack/reports/decision_memo_1pager.md
 ├── dbt_marketing_ab/
 │   └── models/...
 ├── notebooks/
-│   ├── 01_eda_and_integrity_diagnostics.ipynb
+│   ├── 01_eda_and_randomization_checks.ipynb
 │   ├── 02_ab_test_frequentist_and_power.ipynb
 │   └── 03_cohort_heterogeneity_and_recommendations.ipynb
 ├── decision_pack/
@@ -160,17 +169,29 @@ decision_pack/reports/decision_memo_1pager.md
 │   ├── tests/fixtures/
 │   │   └── marketing_ab_sample.csv  # committed for CI
 │   ├── reports/
-│   │   └── integrity_report.md
+│   │   ├── decision_memo_1pager.md
+│   │   ├── estimation_report.md
+│   │   ├── integrity_report.md
+│   │   └── power_mde_planning.md
 │   └── src/abpack/
-│       ├── io.py
+│       ├── __init__.py
 │       ├── checks.py
-│       └── run.py
+│       ├── io.py
+│       ├── power.py
+│       ├── reporting.py
+│       ├── robustness.py
+│       ├── run.py
+│       ├── run_estimation.py
+│       ├── run_power.py
+│       ├── stats.py
+│       └── viz.py
 ├── src/
 │   └── ab_experiment/
 │       ├── data_access.py
 │       └── stats.py
 ├── visuals/
 │   ├── conversion_rate_by_group.png
+│   ├── conversion_rate_by_group_95CI.png
 │   ├── conversion_rate_by_day_and_test_group.png
 │   └── conversion_rate_by_ad_intensity_cohort_and_group.png
 ├── README.md
@@ -181,7 +202,7 @@ decision_pack/reports/decision_memo_1pager.md
 
 ## 6. Notebooks Overview
 
-### `01_eda_and_integrity_diagnostics.ipynb`
+### `01_eda_and_randomization_checks.ipynb`
 
 **Goal:** Audit assignment/allocation assumptions and run integrity diagnostics before trusting lift.
 
@@ -220,11 +241,8 @@ jupyter lab
 
 ### Reproduce the Decision Pack (reports)
 
-```powershell
-cd decision_pack/src
-python -m abpack.run
-python -m abpack.run_estimation
-```
+- See Reproduce the Decision Pack above.
+
 ### Data
 - Large Kaggle CSV is intentionally **not committed**.
 - Put the dataset here locally: `decision_pack/data/marketing_ab.csv`
@@ -243,14 +261,24 @@ python -m abpack.run_estimation
 
 ## 9. Experimentation Decision Pack (Integrity + Memo)
 
-Alongside the notebooks and core `src/ab_experiment` module, this repo includes a small “decision pack” under `decision_pack/`:
+Alongside the notebooks and core `src/ab_experiment` module, this repo includes a small "decision pack" under `decision_pack/`:
 
 - `decision_pack/src/abpack/`:
   - `io.py` – load and normalize the Kaggle marketing_AB dataset
   - `checks.py` – SRM diagnostic, categorical distribution checks (day/hour), basic data quality checks
+  - `stats.py` – statistical functions for hypothesis testing and confidence intervals
+  - `reporting.py` – report generation utilities
+  - `robustness.py` – stratified analysis and robustness checks
+  - `viz.py` – visualization utilities for plots and charts
+  - `power.py` – power analysis and MDE calculations
   - `run.py` – generates an integrity report in markdown
+  - `run_estimation.py` – generates estimation report with lift and CI
+  - `run_power.py` – generates power and MDE planning report
 - `decision_pack/reports/`:
   - `integrity_report.md` – SRM, timing distribution diagnostics, and QA findings
+  - `estimation_report.md` – lift estimation with confidence intervals and stratified analysis
+  - `decision_memo_1pager.md` – executive summary and recommendation
+  - `power_mde_planning.md` – power analysis and minimum detectable effect planning
 
 This mirrors how I’d treat an experiment in production: **run integrity checks first, then decide whether the lift is trustworthy enough to use for high-stakes decisions.**
 

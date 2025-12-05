@@ -10,6 +10,10 @@ __pycache__/
 *.csv
 decision_pack/data/
 
+# Allow small test fixtures
+!decision_pack/tests/fixtures/
+!decision_pack/tests/fixtures/*.csv
+
 # Jupyter
 .ipynb_checkpoints/
 
