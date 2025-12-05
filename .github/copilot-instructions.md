@@ -46,7 +46,7 @@ This repository analyzes Ad vs PSA performance using the Kaggle `marketing_AB` d
   python -m abpack.run_estimation
   ```
 - To view results, check `decision_pack/reports/integrity_report.md` and `decision_pack/reports/estimation_report.md`.
-- For EDA and diagnostics, open `notebooks/01_eda_and_integrity_diagnostics.ipynb`.
+- For EDA and diagnostics, open `notebooks/01_eda_and_randomization_checks.ipynb`.
 
 ## References
 - See `README.md` for business context, workflow, and roadmap.
