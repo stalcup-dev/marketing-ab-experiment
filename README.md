@@ -121,9 +121,10 @@ python -m abpack.run_estimation
 
 ## 3. Visuals (Selected)
 
-### 3.1 Conversion rate by group
 
-![Conversion rate by group](visuals/conversion_rate_by_group.png)
+### 3.1 Conversion rate by group (with 95% CI)
+
+![Conversion rate by group with 95% CI](visuals/conversion_rate_by_group_95CI.png)
 
 ### 3.2 Conversion rate by day and test group
 
