@@ -92,13 +92,28 @@ def main():
     # ---------------- DISTRIBUTION DIAGNOSTICS SECTION ----------------
     # In huge datasets, chi-square p-values often get extremely small; p-value alone can overstate importance.
     # Later improvement: add effect size (e.g., Cramér's V) to quantify practical difference.
+    note_added = False
     if day:
+        if not note_added:
+            lines.append("_Cramér's V thresholds are rule-of-thumb guidelines._\n\n")
+            note_added = True
         lines.append("## Balance / Distribution: most_ads_day\n")
         lines.append(f"- p-value: {fmt_p(day['p_value'])}\n\n")
+        lines.append(
+            "- effect_size (Cramér's V): "
+            f"{day['cramers_v_formatted']} ({day['cramers_v_label']})\n\n"
+        )
 
     if hour:
+        if not note_added:
+            lines.append("_Cramér's V thresholds are rule-of-thumb guidelines._\n\n")
+            note_added = True
         lines.append("## Balance / Distribution: most_ads_hour\n")
         lines.append(f"- p-value: {fmt_p(hour['p_value'])}\n\n")
+        lines.append(
+            "- effect_size (Cramér's V): "
+            f"{hour['cramers_v_formatted']} ({hour['cramers_v_label']})\n\n"
+        )
 
     # Write report to disk (overwrite if it exists)
     report_path.write_text("".join(lines), encoding="utf-8")

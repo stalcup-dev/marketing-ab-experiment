@@ -10,7 +10,7 @@ End-to-end analysis of Ad vs PSA performance using the Kaggle `marketing_AB` dat
 - **Directional impact (this dataset):** Ad converts at **2.55%** vs **1.79%** for PSA → **+0.77 pp** lift (**+43.09%** relative; 95% CI **[+0.60, +0.94] pp**).
 - **Business translation:** ≈ **7,692 incremental conversions per 1,000,000 users exposed** (directional; from the full-dataset lift).
 - **Design / validity caveat:** The observed allocation is **~96% Ad / ~4% PSA**, which is inconsistent with a classic 50/50 randomized A/B and is more consistent with a **treatment-heavy holdout**. Treat results as **directional** unless assignment is confirmed randomized and stable.
-- **Timing robustness:** Day/hour distributions differ statistically (large N), but **stratified lift by day/hour (~0.78 pp) matches the naive lift (0.77 pp)** → timing mix is unlikely the primary driver of the observed lift.
+- **Timing robustness:** Day/hour distributions differ statistically (large N), but **stratified lift by day/hour (~0.78 pp) matches the naive lift (0.77 pp)**, and Cramér's V ≈ 0.02 (negligible), so timing mix is unlikely the primary driver of the observed lift.
 - **What this repo demonstrates:** A production-style workflow: **integrity checks (SRM, QA, balance) → estimation (lift + CI) → robustness → 1-page decision memo**.
 
 **Audience:** Product, Growth, and Marketing teams evaluating incrementality and experiment integrity.
@@ -70,7 +70,7 @@ This repo includes an integrity audit pipeline under `decision_pack/` that gener
   - Note: SRM is only “failure” relative to an assumed target split. This dataset may have been designed as a holdout rather than 50/50.
 
 - **Timing distribution diagnostics:**
-  - Day-of-week and hour-of-day differ significantly across groups (p ≪ 0.001).
+  - Day-of-week and hour-of-day differ significantly across groups (p ≪ 0.001), but Cramér's V ≈ 0.02 for both (negligible practical imbalance).
   - With large samples, small differences become statistically detectable; however these signals still indicate groups may not be perfectly comparable across time windows.
   - **However, stratified lift by day/hour matches the naive lift (~0.78 pp vs 0.77 pp), suggesting timing mix is unlikely the primary driver of the observed lift.**
 
@@ -85,7 +85,7 @@ This repo includes an integrity audit pipeline under `decision_pack/` that gener
 ### Decision Pack Outputs
 
 **Reports:**
-- `decision_pack/reports/integrity_report.md` — SRM + QA + balance diagnostics
+- `decision_pack/reports/integrity_report.md` — SRM + QA + timing balance (chi-square + Cramér's V effect sizes)
 - `decision_pack/reports/estimation_report.md` — lift + CI + stratified robustness (day/hour)
 - `decision_pack/reports/decision_memo_1pager.md` — 1-page recommendation
 - `decision_pack/reports/power_mde_planning.md` — power analysis and MDE planning
@@ -287,7 +287,7 @@ This mirrors how I’d treat an experiment in production: **run integrity checks
 
 ## 10. Roadmap / Future Work
 
-- Add effect-size reporting for distribution diagnostics (e.g., Cramér’s V) to quantify practical vs statistical differences
+- Extend Cramér’s V coverage to other categorical diagnostics (device, geo) and surface rule-of-thumb thresholds in the README
 - Build a “balanced subset” analysis (matched Ad sample to PSA) as a pedagogical A/B-style comparison (clearly labeled as a constructed subset)
 - Tableau overview dashboard + drill-downs
 - Logistic regression / causal modeling with covariates (if available)
